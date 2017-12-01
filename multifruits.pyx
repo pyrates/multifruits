@@ -65,6 +65,7 @@ cdef class Parser:
 
     def on_headers_complete(self):
         self._maybe_call_on_header()
+        self.handler.on_headers_complete()
 
     cdef _feed_data(self, char* data):
         cdef:
@@ -239,7 +240,7 @@ cpdef parse_content_disposition(bytes data):
             if dtype is None:
                 dtype = data[start:end]
             elif field is not None:
-                params[field] = data[start:end]
+                params[field.lower()] = data[start:end].replace(b'\\', b'')
                 field = None
             i += 1
             start = i
@@ -264,9 +265,9 @@ cpdef parse_content_disposition(bytes data):
         previous = c
     if i:
         if dtype is None:
-            dtype = data[start:end]
+            dtype = data[start:end].lower()
         elif field is not None:
-            params[field] = data[start:end]
+            params[field.lower()] = data[start:end].replace(b'\\', b'')
     return dtype, params
 
 
