@@ -94,11 +94,11 @@ def test_attwithasciifnescapedquote():
     assert params == {b'filename': b'"quoting" tested.html'}
 
 
-# def test_attwithquotedsemicolon():
-#     dtype, params = parse_content_disposition(
-#         b'attachment; filename="Here\'s a semicolon;.html"')
-#     assert dtype == 'attachment'
-#     assert params == {b'filename': b'Here\'s a semicolon;.html'}
+def test_attwithquotedsemicolon():
+    dtype, params = parse_content_disposition(
+        b'attachment; filename="Here\'s a semicolon;.html"')
+    assert dtype == b'attachment'
+    assert params == {b'filename': b"Here's a semicolon;.html"}
 
 
 def test_attwithfilenameandextparam():
@@ -135,11 +135,11 @@ def test_attemptyparam():
     assert params == {b'filename': b'foo'}
 
 
-# def test_attwithasciifilenamenqws():
-#     dtype, params = parse_content_disposition(
-#         b'attachment; filename=foo bar.html')
-#     assert dtype == b'attachment'
-#     assert params == {}
+def test_attwithasciifilenamenqws():
+    dtype, params = parse_content_disposition(
+        b'attachment; filename=foo bar.html')
+    assert dtype == b'attachment'
+    assert params == {b'filename': b'foo bar.html'}
 
 
 def test_attwithfntokensq():

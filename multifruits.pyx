@@ -236,14 +236,14 @@ cpdef parse_content_disposition(bytes data):
         bytes field = None
     while i < length:
         c = data[i]
-        if c == b';':
+        if not quoted and c == b';':
             if dtype is None:
                 dtype = data[start:end]
             elif field is not None:
                 params[field.lower()] = data[start:end].replace(b'\\', b'')
                 field = None
             i += 1
-            start = i
+            start = end = i
         elif c == b'"':
             i += 1
             if not previous or previous != b'\\':
@@ -253,12 +253,13 @@ cpdef parse_content_disposition(bytes data):
             else:
                 end = i
         elif c == b'=':
-            field = data[start:i]
+            field = data[start:end]
             i += 1
-            start = i
-        elif not quoted and c == b' ':
+            start = end = i
+        elif c == b' ':
             i += 1
-            start = i
+            if not quoted and start == end:  # Leading spaces.
+                start = end = i
         else:
             i += 1
             end = i
