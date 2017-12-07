@@ -1,7 +1,6 @@
 # cython: language_level=3
 
 from cpython cimport bool
-from collections import defaultdict
 
 
 cdef enum state:
@@ -29,12 +28,12 @@ cdef class Parser:
 
     cdef:
         char* data
-        unsigned int index
         bytes boundary
+        unsigned int boundary_index
         unsigned int boundary_length
         unsigned char state
         object handler
-        on_part_begin, on_part_end, on_body_begin, on_body_end, on_headers_complete
+        on_part_begin, on_part_complete, on_body_begin, on_body_complete, on_headers_complete
         bytes _current_header_field
         bytes _current_header_value
 
@@ -44,6 +43,8 @@ cdef class Parser:
         self._current_header_field = None
         self._current_header_value = None
         self.handler = handler
+        self.state = 0
+        self.boundary_index = 0
 
     def _maybe_call_on_header(self):
         if self._current_header_value is not None:
@@ -71,152 +72,164 @@ cdef class Parser:
         cdef:
             unsigned int i = 0
             unsigned int mark = 0
-            unsigned int index = 0
-            unsigned int state = 0
             char c
             unsigned int length = len(data)
 
         while i < length:
             c = data[i]
-            # print("state", state)
+            # print("state", self.state)
             # print("processing", repr(chr(c)))
-            if state == PREAMBLE:
+            if self.state == PREAMBLE:
                 if c == b'-':
-                    state = PREAMBLE_HY_HY
-            elif state == PREAMBLE_HY_HY:
+                    self.state = PREAMBLE_HY_HY
+                i += 1
+            elif self.state == PREAMBLE_HY_HY:
                 if c == b'-':
-                    state = FIRST_BOUNDARY
+                    self.state = FIRST_BOUNDARY
                 else:
-                    state = PREAMBLE
-            elif state == FIRST_BOUNDARY:
-                if index == self.boundary_length:
+                    self.state = PREAMBLE
+                i += 1
+            elif self.state == FIRST_BOUNDARY:
+                if self.boundary_index == self.boundary_length:
                     assert c == b'\r'
-                    index += 1
-                elif index == self.boundary_length + 1:
+                    self.boundary_index += 1
+                elif self.boundary_index == self.boundary_length + 1:
                     assert c == b'\n'
                     self.handler.on_body_begin()
                     self.handler.on_part_begin()
-                    index = 0
-                    state = HEADER_FIELD_START
-                elif c == self.boundary[index]:
-                    index += 1
+                    self.boundary_index = 0
+                    self.state = HEADER_FIELD_START
+                elif c == self.boundary[self.boundary_index]:
+                    self.boundary_index += 1
                 else:
                     raise ValueError('FIRST_BOUNDARY')
-            elif state == HEADER_FIELD_START:
+                i += 1
+            elif self.state == HEADER_FIELD_START:
                 if c == b'\r':
-                    state = HEADERS_DONE
+                    self.state = HEADERS_DONE
+                    i += 1
                 else:
-                    state = HEADER_FIELD
-            elif state == HEADER_FIELD:
+                    self.state = HEADER_FIELD
+            elif self.state == HEADER_FIELD:
                 mark = i
                 while i < length:
                     c = data[i]
-                    if c in (b'(', b')', b'<', b'>', b'@', b',', b';', b':', b'\\', b'"', b'/', b'[', b']', b'?', b'=', b'{', b'}', b' ', b'\t'):
+                    if c in (b'(', b')', b'<', b'>', b'@', b',', b';', b':',
+                             b'\\', b'"', b'/', b'[', b']', b'?', b'=', b'{',
+                             b'}', b' ', b'\t'):
                         break
                     i += 1
                 if i > mark:
-                    self.on_header_field(data[mark-1:i])
+                    self.on_header_field(data[mark:i])
                 if i == length:
                     break
                 if c == b':':
-                    state = HEADER_VALUE_START
+                    self.state = HEADER_VALUE_START
                 else:
                     raise ValueError('HEADER_FIELD')
-            elif state == HEADER_VALUE_START:
+                i += 1
+            elif self.state == HEADER_VALUE_START:
                 if c != b' ' and c != b'\t':
-                    state = HEADER_VALUE
-            elif state == HEADER_VALUE:
+                    self.state = HEADER_VALUE
+                else:
+                    i += 1
+            elif self.state == HEADER_VALUE:
                 mark = i
                 while i < length:
                     c = data[i]
                     if c == b'\r':
-                        state = HEADER_VALUE_CR
+                        self.state = HEADER_VALUE_CR
                         break
                     i += 1
                 if i > mark:
-                    self.on_header_value(data[mark-1:i])
-            elif state == HEADER_VALUE_CR:
+                    self.on_header_value(data[mark:i])
+                i += 1
+            elif self.state == HEADER_VALUE_CR:
                 if c == b'\n':
-                    state = HEADER_FIELD_START
+                    self.state = HEADER_FIELD_START
                 else:
                     raise ValueError('HEADER_VALUE_CR')
-            elif state == HEADERS_DONE:
+                i += 1
+            elif self.state == HEADERS_DONE:
                 if c == b'\n':
                     self.on_headers_complete()
-                    state = DATA
+                    self.state = DATA
                 else:
                     raise ValueError('HEADERS_DONE')
-            elif state == DATA:
+                i += 1
+            elif self.state == DATA:
                 mark = i
                 while i < length:
                     c = data[i]
                     if c == b'\r':
-                        state = DATA_CR
+                        self.state = DATA_CR
                         break
                     i += 1
                 if i > mark:
-                    self.handler.on_data(data[mark-1:i])
-            elif state == DATA_CR:
+                    self.handler.on_data(data[mark:i])
+                i += 1
+            elif self.state == DATA_CR:
                 if c == b'\n':
-                    state = DATA_CR_LF
+                    self.state = DATA_CR_LF
+                    i += 1
                 else:
                     self.handler.on_data(b'\r')
-                    state = DATA
-                    i -= 1
-            elif state == DATA_CR_LF:
+                    self.state = DATA
+            elif self.state == DATA_CR_LF:
                 if c == b'-':
-                    state = DATA_CR_LF_HY
+                    self.state = DATA_CR_LF_HY
+                    i += 1
                 else:
                     self.handler.on_data(b'\r\n')
-                    state = DATA
-                    i -= 1
-            elif state == DATA_CR_LF_HY:
+                    self.state = DATA
+            elif self.state == DATA_CR_LF_HY:
                 if c == b'-':
-                    state = DATA_BOUNDARY_START
+                    self.state = DATA_BOUNDARY_START
+                    i += 1
                 else:
                     self.handler.on_data(b'\r\n-')
-                    state = DATA
-                    i -= 1
-            elif state == DATA_BOUNDARY_START:
-                index = 0
-                state = DATA_BOUNDARY
-                i -= 1
-            elif state == DATA_BOUNDARY:
-                if index == self.boundary_length:
-                    index = 0
-                    state = DATA_BOUNDARY_DONE
-                    i -= 1
-                elif c == self.boundary[index]:
-                    index += 1
+                    self.state = DATA
+            elif self.state == DATA_BOUNDARY_START:
+                self.boundary_index = 0
+                self.state = DATA_BOUNDARY
+            elif self.state == DATA_BOUNDARY:
+                if self.boundary_index == self.boundary_length:
+                    self.boundary_index = 0
+                    self.state = DATA_BOUNDARY_DONE
+                elif c == self.boundary[self.boundary_index]:
+                    self.boundary_index += 1
+                    i += 1
                 else:
-                    self.handler.on_data(self.boundary[:index])
-                    state = DATA
-                    i -= 1
-            elif state == DATA_BOUNDARY_DONE:
+                    self.handler.on_data(self.boundary[:self.boundary_index])
+                    self.state = DATA
+            elif self.state == DATA_BOUNDARY_DONE:
                 if c == b'\r':
-                    state = DATA_BOUNDARY_DONE_CR_LF
+                    self.state = DATA_BOUNDARY_DONE_CR_LF
                 elif c == b'-':
-                    state = DATA_BOUNDARY_DONE_HY_HY
+                    self.state = DATA_BOUNDARY_DONE_HY_HY
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE')
-            elif state == DATA_BOUNDARY_DONE_CR_LF:
+                i += 1
+            elif self.state == DATA_BOUNDARY_DONE_CR_LF:
                 if c == b'\n':
-                    self.handler.on_part_end()
+                    self.handler.on_part_complete()
                     self.handler.on_part_begin()
-                    state = HEADER_FIELD_START
+                    self.state = HEADER_FIELD_START
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE_CR_LF')
-            elif state == DATA_BOUNDARY_DONE_HY_HY:
+                i += 1
+            elif self.state == DATA_BOUNDARY_DONE_HY_HY:
                 if c == b'-':
-                    self.handler.on_part_end()
-                    self.handler.on_body_end()
-                    state = EPILOGUE
+                    self.handler.on_part_complete()
+                    self.handler.on_body_complete()
+                    self.state = EPILOGUE
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE_HY_HY')
-            elif state == EPILOGUE:
+                i += 1
+            elif self.state == EPILOGUE:
+                i += 1
                 # Must be ignored according to rfc 1341.
                 break
-            i += 1
 
     def feed_data(self, char* data):
         return self._feed_data(data)
@@ -270,104 +283,3 @@ cpdef parse_content_disposition(bytes data):
         elif field is not None:
             params[field.lower()] = data[start:end].replace(b'\\', b'')
     return dtype, params
-
-
-cdef class Parts:
-
-    cdef:
-        object parts
-        Part _current
-        Parser parser
-
-    def __init__(self, str content_type):
-        self.parts = defaultdict(list)
-        if 'multipart/form-data' in content_type:
-            boundary = content_type.split('=', 1)[1].encode()
-            self.parser = Parser(self, boundary)
-
-    def __str__(self):
-        return str(self.parts)
-
-    def __getitem__(self, key):
-        if len(self.parts[key]):
-            return self.parts[key][0]
-        else:
-            raise KeyError(f'No part named {key}')
-
-    def getall(self, key):
-        return self.parts[key]
-
-    def feed_data(self, bytes data):
-        self.parser.feed_data(data)
-
-    def on_data(self, data: bytes):
-        self._current.on_data(data)
-
-    def on_header(self, field, value):
-        self._current.headers[field] = value
-        print(field, value)
-
-    def on_header_value(self, value):
-        print(value)
-
-    def on_headers_complete(self):
-        print('on_headers_complete')
-
-    def on_part_begin(self):
-        self._current = Part()
-        print('on_part_begin')
-
-    def on_part_end(self):
-        disposition_type, params = parse_content_disposition(self._current.headers.get(b'Content-Disposition'))
-        if not disposition_type:
-            return
-        self._current.type = disposition_type.decode()
-        name = params.get(b'name', b'')
-        self._current.name = name.decode()
-        self._current.params = params
-        self.parts[name].append(self._current)
-        self._current = None
-        print('on_part_end')
-
-    def on_body_begin(self):
-        print('on_body_begin')
-
-    def on_body_end(self):
-        print('on_body_end')
-
-
-cdef class Part:
-
-    cdef:
-        public dict headers
-        public dict params
-        public str type
-        public str name
-        object _file
-        bytes _data
-
-    def __init__(self):
-        self.headers = {}
-        self._file = None
-        self._data = b''
-
-    def __str__(self):
-        return str(self.headers)
-
-    def __repr__(self):
-        return f'<Part {self.headers}>'
-
-    def on_data(self, data: bytes):
-        # if len(self._data) > MAX_BUFFER_SIZE:
-        #     self._file.write(data)
-        # else:
-        self._data += data
-
-    def is_file(self):
-        return self._file is not None
-
-    @property
-    def filename(self):
-        if b'filename*' in self.params:
-            return self.params[b'filename*']
-        return self.params[b'filename']
