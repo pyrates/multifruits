@@ -283,3 +283,18 @@ cpdef parse_content_disposition(bytes data):
         elif field is not None:
             params[field.lower()] = data[start:end].replace(b'\\', b'')
     return dtype, params
+
+
+def extract_filename(params: dict):
+    if b'filename*' in params:
+        filename_star = params.get(b'filename*')
+        if b"''" in filename_star:
+            encoding, filename = filename_star.split(b"''")
+            try:
+                return filename.decode(encoding.decode())
+            except (UnicodeDecodeError, LookupError):
+                if b'filename' in params:
+                    return params.get(b'filename').decode()
+                return filename.decode(errors='ignore')
+        return filename_star
+    return params.get(b'filename').decode()
