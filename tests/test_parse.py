@@ -72,6 +72,34 @@ def test_parse():
     assert form.on_headers_complete_called == 2
 
 
+def test_parse_filename_star():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name=baz; '
+            b'filename="iso-8859-1\'\'baz-\xe9.png"\r\n'
+            b'Content-Type: image/png\r\n'
+            b'\r\n'
+            b'abcdef\r\n'
+            b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'foo')
+    form.feed_data(body)
+    assert form.parts[0].headers == {
+        b'Content-Disposition': (b'form-data; name=baz; '
+                                 b'filename="iso-8859-1\'\'baz-\xe9.png"'),
+        b'Content-Type': b'image/png'
+    }
+    assert form.parts[0].content == b'abcdef'
+    assert form.parts[1].headers == {
+        b'Content-Disposition': b'form-data; name="text1"'
+    }
+    assert form.parts[1].content == b'abc'
+    assert form.on_body_begin_called == 1
+    assert form.on_body_complete_called == 1
+    assert form.on_headers_complete_called == 2
+
+
 def test_parse_feed_data_content_chunked():
     body = (b'--foo\r\n'
             b'Content-Disposition: form-data; name=baz; filename="baz.png"\r\n'
