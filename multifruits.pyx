@@ -287,14 +287,14 @@ cpdef parse_content_disposition(bytes data):
 
 def extract_filename(params: dict):
     if b'filename*' in params:
-        filename_star = params.get(b'filename*')
-        if b"''" in filename_star:
-            encoding, filename = filename_star.split(b"''")
+        filename = params.get(b'filename*')
+        if b"''" in filename:
+            encoding, filename = filename.split(b"''")
             try:
                 return filename.decode(encoding.decode())
-            except (UnicodeDecodeError, LookupError):
-                if b'filename' in params:
-                    return params.get(b'filename').decode()
-                return filename.decode(errors='ignore')
-        return filename_star
+            except (LookupError, UnicodeDecodeError):
+                pass
+        if b'filename' in params:
+            return params.get(b'filename').decode()
+        return filename.decode(errors='ignore')
     return params.get(b'filename').decode()
