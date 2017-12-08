@@ -56,7 +56,7 @@ def test_parse():
             b'Content-Disposition: form-data; name="text1"\r\n'
             b'\r\n'
             b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.parts[0].headers == {
         b'Content-Disposition': b'form-data; name=baz; filename="baz.png"',
@@ -83,7 +83,7 @@ def test_parse_filename_star():
             b'Content-Disposition: form-data; name="text1"\r\n'
             b'\r\n'
             b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.parts[0].headers == {
         b'Content-Disposition': (b'form-data; name=baz; '
@@ -111,7 +111,7 @@ def test_parse_feed_data_content_chunked():
              b'Content-Disposition: form-data; name="text1"\r\n'
              b'\r\n'
              b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.on_headers_complete_called == 1
     form.feed_data(body2)
@@ -140,7 +140,7 @@ def test_parse_feed_data_header_name_chunked():
              b'Content-Disposition: form-data; name="text1"\r\n'
              b'\r\n'
              b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.on_headers_complete_called == 0
     form.feed_data(body2)
@@ -169,7 +169,7 @@ def test_parse_feed_data_header_value_chunked():
              b'Content-Disposition: form-data; name="text1"\r\n'
              b'\r\n'
              b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.on_headers_complete_called == 0
     form.feed_data(body2)
@@ -198,7 +198,7 @@ def test_parse_feed_data_boundary_chunked():
              b'Content-Disposition: form-data; name="text1"\r\n'
              b'\r\n'
              b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     form.feed_data(body2)
     assert form.parts[0].headers == {
@@ -230,7 +230,7 @@ def test_parse_two_parts_with_same_name():
             b'Content-Disposition: form-data; name="text1"\r\n'
             b'\r\n'
             b'abc\r\n--foo--')
-    form = Handler(b'foo')
+    form = Handler(b'multipart/form-data; boundary=foo')
     form.feed_data(body)
     assert form.parts[0].headers == {
         b'Content-Disposition': b'form-data; name=bar; filename=tmp.png',

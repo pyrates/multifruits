@@ -37,9 +37,12 @@ cdef class Parser:
         bytes _current_header_field
         bytes _current_header_value
 
-    def __init__(self, handler, bytes boundary):
-        self.boundary = boundary
-        self.boundary_length = len(boundary)
+    def __init__(self, handler, bytes content_type):
+        cdef dict params
+        cdef bytes _
+        _, params = parse_content_disposition(content_type)
+        self.boundary = params[b'boundary']
+        self.boundary_length = len(self.boundary)
         self._current_header_field = None
         self._current_header_value = None
         self.handler = handler
