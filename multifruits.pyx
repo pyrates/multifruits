@@ -98,7 +98,8 @@ cdef class Parser:
                     self.boundary_index += 1
                 elif self.boundary_index == self.boundary_length + 1:
                     assert c == b'\n'
-                    self.handler.on_body_begin()
+                    if hasattr(self.handler, 'on_body_begin'):
+                        self.handler.on_body_begin()
                     self.handler.on_part_begin()
                     self.boundary_index = 0
                     self.state = HEADER_FIELD_START
@@ -224,7 +225,8 @@ cdef class Parser:
             elif self.state == DATA_BOUNDARY_DONE_HY_HY:
                 if c == b'-':
                     self.handler.on_part_complete()
-                    self.handler.on_body_complete()
+                    if hasattr(self.handler, 'on_body_complete'):
+                        self.handler.on_body_complete()
                     self.state = EPILOGUE
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE_HY_HY')

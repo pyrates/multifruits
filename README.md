@@ -25,6 +25,10 @@ on_part_complete()
 on_body_complete()
 ```
 
+In case of `on_body_begin` and `on_body_complete`, a check is performed
+to avoid failing in case of inexistence but you have to implement the
+other ones.
+
 Example:
 
 ```python
