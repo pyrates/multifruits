@@ -33,7 +33,8 @@ cdef class Parser:
         unsigned int boundary_length
         unsigned char state
         object handler
-        on_part_begin, on_part_complete, on_body_begin, on_body_complete, on_headers_complete
+        _on_body_begin, _on_part_begin, _on_header, _on_headers_complete, \
+        _on_data, _on_part_complete, _on_body_complete
         bytes _current_header_field
         bytes _current_header_value
 
@@ -45,13 +46,20 @@ cdef class Parser:
         self.boundary_length = len(self.boundary)
         self._current_header_field = None
         self._current_header_value = None
-        self.handler = handler
         self.state = 0
         self.boundary_index = 0
+        self._on_body_begin = getattr(handler, 'on_body_begin', None)
+        self._on_part_begin = getattr(handler, 'on_part_begin', None)
+        self._on_header = getattr(handler, 'on_header', None)
+        self._on_headers_complete = getattr(handler, 'on_headers_complete', None)
+        self._on_data = getattr(handler, 'on_data', None)
+        self._on_part_complete = getattr(handler, 'on_part_complete', None)
+        self._on_body_complete = getattr(handler, 'on_body_complete', None)
 
     def _maybe_call_on_header(self):
         if self._current_header_value is not None:
-            self.handler.on_header(self._current_header_field, self._current_header_value)
+            if self._on_header is not None:
+                self._on_header(self._current_header_field, self._current_header_value)
             self._current_header_field = self._current_header_value = None
 
     def on_header_field(self, data):
@@ -69,7 +77,8 @@ cdef class Parser:
 
     def on_headers_complete(self):
         self._maybe_call_on_header()
-        self.handler.on_headers_complete()
+        if self._on_headers_complete is not None:
+            self._on_headers_complete()
 
     cdef _feed_data(self, char* data):
         cdef:
@@ -98,9 +107,10 @@ cdef class Parser:
                     self.boundary_index += 1
                 elif self.boundary_index == self.boundary_length + 1:
                     assert c == b'\n'
-                    if hasattr(self.handler, 'on_body_begin'):
-                        self.handler.on_body_begin()
-                    self.handler.on_part_begin()
+                    if self._on_body_begin is not None:
+                        self._on_body_begin()
+                    if self._on_part_begin is not None:
+                        self._on_part_begin()
                     self.boundary_index = 0
                     self.state = HEADER_FIELD_START
                 elif c == self.boundary[self.boundary_index]:
@@ -170,28 +180,32 @@ cdef class Parser:
                         break
                     i += 1
                 if i > mark:
-                    self.handler.on_data(data[mark:i])
+                    if self._on_data is not None:
+                        self._on_data(data[mark:i])
                 i += 1
             elif self.state == DATA_CR:
                 if c == b'\n':
                     self.state = DATA_CR_LF
                     i += 1
                 else:
-                    self.handler.on_data(b'\r')
+                    if self._on_data is not None:
+                        self._on_data(b'\r')
                     self.state = DATA
             elif self.state == DATA_CR_LF:
                 if c == b'-':
                     self.state = DATA_CR_LF_HY
                     i += 1
                 else:
-                    self.handler.on_data(b'\r\n')
+                    if self._on_data is not None:
+                        self._on_data(b'\r\n')
                     self.state = DATA
             elif self.state == DATA_CR_LF_HY:
                 if c == b'-':
                     self.state = DATA_BOUNDARY_START
                     i += 1
                 else:
-                    self.handler.on_data(b'\r\n-')
+                    if self._on_data is not None:
+                        self._on_data(b'\r\n-')
                     self.state = DATA
             elif self.state == DATA_BOUNDARY_START:
                 self.boundary_index = 0
@@ -204,7 +218,8 @@ cdef class Parser:
                     self.boundary_index += 1
                     i += 1
                 else:
-                    self.handler.on_data(self.boundary[:self.boundary_index])
+                    if self._on_data is not None:
+                        self._on_data(self.boundary[:self.boundary_index])
                     self.state = DATA
             elif self.state == DATA_BOUNDARY_DONE:
                 if c == b'\r':
@@ -216,17 +231,20 @@ cdef class Parser:
                 i += 1
             elif self.state == DATA_BOUNDARY_DONE_CR_LF:
                 if c == b'\n':
-                    self.handler.on_part_complete()
-                    self.handler.on_part_begin()
+                    if self._on_part_complete is not None:
+                        self._on_part_complete()
+                    if self._on_part_begin is not None:
+                        self._on_part_begin()
                     self.state = HEADER_FIELD_START
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE_CR_LF')
                 i += 1
             elif self.state == DATA_BOUNDARY_DONE_HY_HY:
                 if c == b'-':
-                    self.handler.on_part_complete()
-                    if hasattr(self.handler, 'on_body_complete'):
-                        self.handler.on_body_complete()
+                    if self._on_part_complete is not None:
+                        self._on_part_complete()
+                    if self._on_body_complete is not None:
+                        self._on_body_complete()
                     self.state = EPILOGUE
                 else:
                     raise ValueError('DATA_BOUNDARY_DONE_HY_HY')
