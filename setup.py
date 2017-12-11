@@ -1,4 +1,4 @@
-"""Multipart form data parser"""
+"""Tasty multipart form data parser built with cython."""
 from pathlib import Path
 from setuptools import setup, Extension
 
