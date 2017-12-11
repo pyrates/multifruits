@@ -10,10 +10,14 @@ Tasty multipart form data parser built with cython.
 
 ## Usage
 
-`multifruits` has a one `Parser` class and two helpers: `extract_filename` and
+`multifruits` has one `Parser` class and two helpers: `extract_filename` and
 `parse_content_disposition`.
-`Parser` needs the `Content-Type` header value, and a handler, which should
-define one or more of those methods:
+
+
+#### `Parser`
+
+`Parser` needs the `Content-Type` header value and a handler, which could
+define one or more of these methods:
 
 ```python
 on_body_begin()
@@ -45,6 +49,37 @@ handler = MyHandler()
 parser = Parser(handler, request.headers['Content-Type'])
 parser.feed_data(request.body)  # You can pass chunks
 ```
+
+#### Helpers
+
+##### `parse_content_disposition`
+
+Takes raw `Content-Disposition` header value and returns the disposition type
+(`attachment`, `form-data`, `inline` and so on) and the parameters parsed as a
+dictionary.
+
+Example:
+
+```python
+dtype, params = parse_content_disposition(b'inline; filename="foo.html"')
+assert dtype == b'inline'
+assert params == {b'filename': b'foo.html'}
+```
+
+
+##### `extract_filename`
+
+Takes parameters from `parse_content_disposition` as a dict and tries to
+return the appropriated `str` filename (like `filename*`).
+
+Example:
+
+```python
+assert extract_filename({
+    b'filename*': "UTF-8''foo-ä-€.html".encode()
+}) == 'foo-ä-€.html'
+```
+
 
 ## Build from source
 
