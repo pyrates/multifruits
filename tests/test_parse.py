@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 from multifruits import Parser
+import pytest
 
 
 class Handler:
@@ -70,6 +71,83 @@ def test_parse():
     assert form.on_body_begin_called == 1
     assert form.on_body_complete_called == 1
     assert form.on_headers_complete_called == 2
+
+
+def test_parse_invalid_header_name_character():
+    body = (b'--foo\r\n'
+            b'Content->Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    with pytest.raises(ValueError):
+        form.feed_data(body)
+
+
+def test_parse_kind_of_boundary_in_data():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--fo\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body)
+    assert form.parts[0].content == b'abc\r\n--fo'
+
+
+def test_parse_missing_boundary():
+    with pytest.raises(ValueError) as e:
+        Handler(b'multipart/form-data')
+    assert str(e.value) == 'Missing boundary in Content-Type.'
+
+
+def test_parse_empty():
+    body = b''
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body)
+    assert form.parts == []
+    assert form.on_body_begin_called == 0
+    assert form.on_body_complete_called == 0
+    assert form.on_headers_complete_called == 0
+
+
+def test_parse_empty_boundary():
+    body = b'--bar\r\nbaz\r\n--bar--'
+    form = Handler(b'multipart/form-data; boundary=')
+    with pytest.raises(ValueError):
+        form.feed_data(body)
+
+
+def test_parse_preamble():
+    body = (b'preamble'
+            b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body)
+    assert form.parts[0].headers == {
+        b'Content-Disposition': b'form-data; name="text1"'
+    }
+    assert form.parts[0].content == b'abc'
+    assert form.on_body_begin_called == 1
+    assert form.on_body_complete_called == 1
+    assert form.on_headers_complete_called == 1
+
+
+def test_parse_epilogue():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--'
+            b'epilogue')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body)
+    assert form.parts[0].headers == {
+        b'Content-Disposition': b'form-data; name="text1"'
+    }
+    assert form.parts[0].content == b'abc'
+    assert form.on_body_begin_called == 1
+    assert form.on_body_complete_called == 1
+    assert form.on_headers_complete_called == 1
 
 
 def test_parse_filename_star():
