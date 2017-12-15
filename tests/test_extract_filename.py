@@ -5,6 +5,10 @@ def test_extract_filename():
     assert extract_filename({b'filename': b'foo.bar'}) == 'foo.bar'
 
 
+def test_extract_filename_without_filename():
+    assert extract_filename({}) == ''
+
+
 def test_extract_filename_star():
     assert extract_filename({b'filename*': b"utf-8''foo.bar"}) == 'foo.bar'
 

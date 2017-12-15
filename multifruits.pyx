@@ -322,4 +322,4 @@ def extract_filename(params: dict):
         if b'filename' in params:
             return params.get(b'filename').decode()
         return filename.decode(errors='ignore')
-    return params.get(b'filename').decode()
+    return params.get(b'filename', b'').decode()
