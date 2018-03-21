@@ -327,3 +327,20 @@ def test_parse_two_parts_with_same_name():
     assert form.on_body_begin_called == 1
     assert form.on_body_complete_called == 1
     assert form.on_headers_complete_called == 3
+
+
+def test_parse_with_null_byte():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name=baz; filename="baz.png"\r\n'
+            b'Content-Type: image/png\r\n'
+            b'\r\n'
+            b'abcdef\x00ghi\r\n'
+            b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\x00def\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body)
+    assert form.parts
+    assert form.parts[0].content == b'abcdef\x00ghi'
+    assert form.parts[1].content == b'abc\x00def'
