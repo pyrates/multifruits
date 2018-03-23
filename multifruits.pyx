@@ -81,7 +81,7 @@ cdef class Parser:
         if self._on_headers_complete is not None:
             self._on_headers_complete()
 
-    cdef _feed_data(self, char* data):
+    cdef _feed_data(self, bytes data):
         cdef:
             unsigned int i = 0
             unsigned int mark = 0
@@ -256,7 +256,7 @@ cdef class Parser:
                 # Must be ignored according to rfc 1341.
                 break
 
-    def feed_data(self, char* data):
+    def feed_data(self, bytes data):
         return self._feed_data(data)
 
 
