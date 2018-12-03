@@ -7,4 +7,5 @@ test:
 
 release: compile test
 	rm -rf dist/ build/ *.egg-info
-	python setup.py sdist bdist_wheel upload
+	python setup.py sdist
+	twine upload dist/*

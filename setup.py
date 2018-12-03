@@ -2,14 +2,14 @@
 from pathlib import Path
 from setuptools import setup, Extension
 
-VERSION = (0, 1, 3)
+VERSION = (0, 1, 4)
 
 setup(
     name="multifruits",
     version=".".join(map(str, VERSION)),
     description=__doc__,
     long_description=Path("README.md").read_text(),
-    long_description_content_type="text/markdown; charset=UTF-8; variant=GFM",
+    long_description_content_type="text/markdown",
     author="Pyrates",
     author_email="yohan.boniface@data.gouv.fr",
     url="https://github.com/pyrates/multifruits",
