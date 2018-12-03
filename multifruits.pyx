@@ -101,7 +101,6 @@ cdef class Parser:
                     self._state = PREAMBLE
                 i += 1
             elif self._state == FIRST_BOUNDARY:
-                self._boundary_index = 0
                 while i < length:
                     c = data[i]
                     if self._boundary_index == self._boundary_length:

@@ -93,6 +93,39 @@ def test_parse_kind_of_boundary_in_data():
     assert form.parts[0].content == b'abc\r\n--fo'
 
 
+def test_parse_chunked_boundary():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body[:4])
+    form.feed_data(body[4:])
+    assert form.parts[0].content == b'abc'
+
+
+def test_parse_chunked_last_boundary():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    form.feed_data(body[:-4])
+    form.feed_data(body[-4:])
+    assert form.parts[0].content == b'abc'
+
+
+def test_parse_char_by_char():
+    body = (b'--foo\r\n'
+            b'Content-Disposition: form-data; name="text1"\r\n'
+            b'\r\n'
+            b'abc\r\n--foo--')
+    form = Handler(b'multipart/form-data; boundary=foo')
+    for idx in range(len(body)):
+        form.feed_data(body[idx:idx+1])
+    assert form.parts[0].content == b'abc'
+
+
 def test_parse_missing_boundary():
     with pytest.raises(ValueError) as e:
         Handler(b'multipart/form-data')
