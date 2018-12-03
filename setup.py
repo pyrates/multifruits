@@ -2,37 +2,35 @@
 from pathlib import Path
 from setuptools import setup, Extension
 
-with Path(__file__).parent.joinpath('README.md').open(encoding='utf-8') as f:
-    long_description = f.read()
-
-VERSION = (0, 1, 2)
+VERSION = (0, 1, 3)
 
 setup(
-    name='multifruits',
-    version='.'.join(map(str, VERSION)),
+    name="multifruits",
+    version=".".join(map(str, VERSION)),
     description=__doc__,
-    long_description=long_description,
-    author='Pyrates',
-    author_email='yohan.boniface@data.gouv.fr',
-    url='https://github.com/pyrates/multifruits',
+    long_description=Path("README.md").read_text(),
+    long_description_content_type="text/markdown; charset=UTF-8; variant=GFM",
+    author="Pyrates",
+    author_email="yohan.boniface@data.gouv.fr",
+    url="https://github.com/pyrates/multifruits",
     classifiers=[
-        'License :: OSI Approved :: MIT License',
-        'Intended Audience :: Developers',
-        'Programming Language :: Python :: 3',
-        'Operating System :: POSIX',
-        'Operating System :: MacOS :: MacOS X',
-        'Environment :: Web Environment',
-        'Development Status :: 4 - Beta',
+        "License :: OSI Approved :: MIT License",
+        "Intended Audience :: Developers",
+        "Programming Language :: Python :: 3",
+        "Operating System :: POSIX",
+        "Operating System :: MacOS :: MacOS X",
+        "Environment :: Web Environment",
+        "Development Status :: 4 - Beta",
     ],
-    platforms=['POSIX'],
-    license='MIT',
+    platforms=["POSIX"],
+    license="MIT",
     ext_modules=[
         Extension(
-            'multifruits',
-            ['multifruits.c'],
-            extra_compile_args=['-O3']  # Max optimization when compiling.
+            "multifruits",
+            ["multifruits.c"],
+            extra_compile_args=["-O3"],  # Max optimization when compiling.
         )
     ],
-    provides=['multifruits'],
-    include_package_data=True
+    provides=["multifruits"],
+    include_package_data=True,
 )
