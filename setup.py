@@ -33,4 +33,5 @@ setup(
     ],
     provides=["multifruits"],
     include_package_data=True,
+    extras_require={"dev": ["Cython==0.29.21"]}
 )

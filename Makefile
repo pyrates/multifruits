@@ -1,3 +1,6 @@
+develop:
+	pip install -e .[dev]
+
 compile:
 	cython -3 multifruits.pyx
 	python setup.py build_ext --inplace
