@@ -2,7 +2,7 @@
 from pathlib import Path
 from setuptools import setup, Extension
 
-VERSION = (0, 1, 5)
+VERSION = (0, 1, 6)
 
 setup(
     name="multifruits",
@@ -33,5 +33,5 @@ setup(
     ],
     provides=["multifruits"],
     include_package_data=True,
-    extras_require={"dev": ["Cython==0.29.21"]}
+    extras_require={"dev": ["Cython==3.0.5"]}
 )
